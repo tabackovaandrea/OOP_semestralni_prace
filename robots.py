@@ -1,8 +1,11 @@
+# Definition of robot classes
+
 class Robot:
     def __init__(self, name, position_x, position_y):
         self.name = name
         self.position_x = position_x
         self.position_y = position_y
+        self.path = []
 
     # # Calculate the robot's new position based on the specified direction
     # Direction values should be -1, 0, or 1 to indicate movement along the x and y axes
