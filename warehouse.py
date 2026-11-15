@@ -1,6 +1,4 @@
 
-from robots import Robot, FastRobot, HeavyRobot
-
 # Definition of the Tile class
 class Tile:
     def __init__(self, x, y, tile_type):
@@ -31,27 +29,26 @@ class Warehouse:
             for column in range(x, x + length):
                 self.tiles[row][column].tile_type = "shelf"
 
-    def move_robots(self, destination):
-        for robot in self.robots:
-            robot.path = self.find_shortest_path((robot.position_x, robot.position_y), destination)
-            if robot.path is None or len(robot.path) <=1:  # Cases where path does not exist or robot is already at destination - skips the following calculations
-                continue
-            next_position = robot.path[1]
-            direction_x = next_position[0]-robot.position_x
-            direction_y = next_position[1]-robot.position_y
-            
-            # Aquire the new position of the robot for collision detection and boundary checking
-            new_x, new_y = robot.move(direction_x, direction_y) # Accesses the first and second element of the direction list respectively for the specific robot thus two brackets (directions -> robot -> [0] or [1] element)
+    def move_robot(self, robot, destination):
+        robot.path = self.find_shortest_path((robot.position_x, robot.position_y), destination, robot)
+        if robot.path is None or len(robot.path) <=1:  # Cases where path does not exist or robot is already at destination - skips the following calculations
+            return
+        next_position = robot.path[1]
+        direction_x = next_position[0]-robot.position_x
+        direction_y = next_position[1]-robot.position_y
+        
+        # Acquire the new position of the robot for collision detection and boundary checking
+        new_x, new_y = robot.move(direction_x, direction_y) # Accesses the first and second element of the direction list respectively for the specific robot thus two brackets (directions -> robot -> [0] or [1] element)
 
-            # Check for potential collisions with shelves and other robots before moving
-            collision = self.check_collisions(new_x, new_y, robot)  # Returns collision status (T/F) and coordinates of the collision
-            
-            # If no collision detected, update robot's position
-            if not collision[0]:
-                self.tiles[robot.position_y][robot.position_x].robot = None  # Remove robot from its current tile  
-                robot.position_x = new_x
-                robot.position_y = new_y
-                self.tiles[robot.position_y][robot.position_x].robot = robot  # Place robot in its new tile
+        # Check for potential collisions with shelves and other robots before moving
+        collision = self.check_collisions(new_x, new_y, robot)  # Returns collision status (T/F) and coordinates of the collision
+        
+        # If no collision detected, update robot's position
+        if not collision[0]:
+            self.tiles[robot.position_y][robot.position_x].robot = None  # Remove robot from its current tile  
+            robot.position_x = new_x
+            robot.position_y = new_y
+            self.tiles[robot.position_y][robot.position_x].robot = robot  # Place robot in its new tile
 
     def check_collisions(self, new_x, new_y, robot):
         if self.tiles[new_y][new_x].tile_type == "shelf":
@@ -61,7 +58,7 @@ class Warehouse:
         return(False, None, None)   # No collision detected
 
     # Method for finding the shortest path from current robot's position to it's destination (basically Breadth-First Search = prohledávání do šířky)
-    def find_shortest_path(self, start, destination):
+    def find_shortest_path(self, start, destination, robot):
         queue = [start]
         possible_directions = [(-1, 0), (1, 0), (0, 1), (0, -1)] # left, right, down, up
         already_visited = [start]  # Needs new list for checking the position because elements are taken out of queue (cannot be checked with queue)
@@ -84,8 +81,9 @@ class Warehouse:
             x, y = current                  # Extract x and y coordinates from the current position (it's a tuple)
             for dx, dy in possible_directions:
                 neighbor = (x + dx, y + dy)
-                # Check if new position is inside warehouse and is not shelf then check if new position was not already visited
-                if 0 <= neighbor[0] < self.columns and 0 <= neighbor[1] < self.rows and self.tiles[neighbor[1]][neighbor[0]].tile_type == "floor":
+                # Check if new position is inside warehouse and is not shelf and is empty or is the position of current robot, then check if new position was not already visited
+                if (0 <= neighbor[0] < self.columns and 0 <= neighbor[1] < self.rows and self.tiles[neighbor[1]][neighbor[0]].tile_type == "floor" 
+                    and (self.tiles[neighbor[1]][neighbor[0]].robot is None or self.tiles[neighbor[1]][neighbor[0]].robot is robot)):
                     if neighbor not in already_visited:
                         queue.append(neighbor)
                         already_visited.append(neighbor)

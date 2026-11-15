@@ -6,6 +6,8 @@ class Robot:
         self.position_x = position_x
         self.position_y = position_y
         self.path = []
+        self.current_order = None
+        self.status = "available"
 
     # # Calculate the robot's new position based on the specified direction
     # Direction values should be -1, 0, or 1 to indicate movement along the x and y axes
@@ -19,8 +21,12 @@ class FastRobot(Robot):
     def __init__(self, name, position_x, position_y):
         super().__init__(name, position_x, position_y)
         self.speed = 5
+        self.min_load = 0
+        self.max_load = 10
 
 class HeavyRobot(Robot):
     def __init__(self, name, position_x, position_y):
         super().__init__(name, position_x, position_y)
         self.speed = 2
+        self.min_load = 10
+        self.max_load = 20

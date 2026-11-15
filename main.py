@@ -1,10 +1,12 @@
 
 from warehouse import Warehouse, Tile
-from robots import Robot, FastRobot, HeavyRobot       
+from robots import Robot, FastRobot, HeavyRobot 
+import orders
+import random      
 
 # Definition of robots, shelves and warehouse
-robot1 = FastRobot("R1", 6, 14)
-robot2 = HeavyRobot("R2", 6, 12)
+robot1 = FastRobot("R1", 1, 2)
+robot2 = HeavyRobot("R2", 4, 8)
 robots = [robot1, robot2]
 
 warehouse = Warehouse(10, 15, robots)
@@ -20,7 +22,7 @@ warehouse.add_shelf(7, 8, 2, 1) # Add a shelf at position (7, 8) with length 2 a
 warehouse.add_shelf(1, 12, 2, 1) # Add a shelf at position (1, 12) with length 2 and width 1
 warehouse.add_shelf(7, 12, 2, 1) # Add a shelf at position (7, 12) with length 2 and width 1
 
-# Definition of access points for each storage location (using nested dictionary)
+# Definition of access points for each storage location (using nested dictionaries)
 storage_locations = {
     # Row A
     "A1": {"shelf": (1, 0), "access": (1, 1)},
@@ -91,10 +93,56 @@ storage_locations = {
 pickup_point = (3, 14)
 delivery_point = (5, 14)
 
-dt = 1  # Time step for movement
+# Generating and assigning orders to robots
+order_list = []
 
-print(f"Initial positions: {[(robot.name, robot.position_x, robot.position_y) for robot in warehouse.robots]}")
-for time in range(20):
-    warehouse.move_robots(storage_locations["A3"]["access"])
-    print(f"Time: {time}, Positions: {[(robot.name, robot.position_x, robot.position_y) for robot in warehouse.robots]}")
-#print(f"Positions after moving: {[(robot.name, robot.position_x, robot.position_y) for robot in warehouse.robots]}")
+for i in range(7):
+    order_list.append(orders.generate_order(i + 1, storage_locations))  # i+1 so that numbers of orders start from one
+for order in order_list:
+    print(order.id, order.location, order.status)
+
+next_order_id = 8
+
+
+# Main working cycle
+for time in range(100):
+
+    # If there are less than 7 unfinished orders, new orders are generated
+    unfinished_orders_count = 0
+    for order in order_list:
+        if order.status != "completed":
+            unfinished_orders_count +=1
+    while unfinished_orders_count < 7:
+        order_list.append(orders.generate_order(next_order_id, storage_locations))
+        next_order_id += 1
+        unfinished_orders_count += 1
+
+    print(f"Time: {time}, Unfinished orders: {unfinished_orders_count}")
+    print([(order.id, order.status, order.weight) for order in order_list])
+
+    for robot in robots:
+
+        if robot.status == "available":         # If robot is available, goes to pickup point and if at pickup point asks for an order
+            warehouse.move_robot(robot, pickup_point)
+            if robot.position_x == pickup_point[0] and robot.position_y == pickup_point[1]:
+                orders.assign_order(robot, order_list)
+                if robot.current_order is not None:     # If order is available, robot status changes to to_storage
+                    robot.status = "to_storage"
+                    robot.current_order.status = "acquiring"
+                    print("Order", robot.current_order.id, "in progress.")
+
+        elif robot.status == "to_storage":  # Robot goes to storage to order's access point, when at the access point, robot status changes to to_delivery and order status changes to delivering
+            go_to_storage = storage_locations[robot.current_order.location]["access"]
+            warehouse.move_robot(robot, go_to_storage)
+            if robot.position_x == go_to_storage[0] and robot.position_y == go_to_storage[1]:
+                robot.status = "to_delivery"
+                robot.current_order.status = "delivering"
+
+        elif robot.status == "to_delivery":   # Robot goes to delivery point, when at delivery point, robot status changes to available and order status changes to is completed
+            warehouse.move_robot(robot, delivery_point)
+            if robot.position_x == delivery_point[0] and robot.position_y == delivery_point[1]:
+                robot.current_order.status = "completed"
+                print("Order", robot.current_order.id, "is completed.")
+                robot.current_order = None
+                robot.status = "available"
+
